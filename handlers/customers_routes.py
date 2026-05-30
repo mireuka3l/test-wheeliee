@@ -46,6 +46,8 @@ def new_customer():
 @login_required
 def customer_detail(cid):
     customer = database.get().get_customer(cid)
+    if not customer:
+        return redirect(url_for('customers.customers'))
     if request.method == 'POST':
         valid_id_path = _save_valid_id(request.files.get("valid_id")) or (customer["valid_id"] if customer else None)
         data = {

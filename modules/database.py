@@ -327,7 +327,18 @@ class Database:
             "FROM rents LEFT JOIN staff s ON rents.staff_id=s.staff_id JOIN bike b ON rents.bike_id=b.bike_id WHERE rents.customer_id=? ORDER BY rents.rental_start DESC LIMIT 10",
             (cid,)
         ).fetchall()
-        return [dict(r) for r in rows]
+
+        result = []
+        for r in rows:
+            rr = dict(r)
+            if rr['rental_end'] is not None:
+                rr['status'] = 'returned'
+            elif rr['rental_start'] <= (datetime.now() - timedelta(days=1)).strftime('%Y-%m-%d %H:%M:%S'):
+                rr['status'] = 'overdue'
+            else:
+                rr['status'] = 'active'
+            result.append(rr)
+        return result
 
     def get_customer_stats(self, cid):
         # Count returned rents and sum amounts from returns mapped to rents by customer and bike
