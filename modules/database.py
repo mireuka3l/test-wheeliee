@@ -16,7 +16,6 @@ class Database:
         self.conn.execute("PRAGMA journal_mode = WAL")
         self._create_tables()
         self._migrate_schema()
-        # legacy one-time overhaul migration removed; kept as no-op for safety
         self._mockstaff()
 
     def _mockstaff(self):
@@ -31,7 +30,6 @@ class Database:
             self.conn.commit()
 
     def _create_tables(self):
-        
         self.conn.executescript("""
         CREATE TABLE IF NOT EXISTS staff (
             staff_id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -57,17 +55,98 @@ class Database:
         CREATE TABLE IF NOT EXISTS bike (
             bike_id INTEGER PRIMARY KEY AUTOINCREMENT,
             bike_code TEXT NOT NULL UNIQUE,
-                # Migration logic removed after successful migration.
-                # Kept as a no-op for compatibility so future imports calling this method are safe.
-                return
+            brand TEXT NOT NULL, model TEXT NOT NULL,
+            size TEXT NOT NULL CHECK(size IN('small','medium','large')),
+            color TEXT NOT NULL,
+            bike_rate DECIMAL(8,2) NOT NULL DEFAULT 0,
+            type TEXT NOT NULL DEFAULT 'standard',
+            status TEXT NOT NULL DEFAULT 'available' CHECK(status IN('available','rented','retired')),
+            date_added DATE NOT NULL DEFAULT(date('now','localtime'))
+        );
+
+        CREATE TABLE IF NOT EXISTS rents (
+            rental_id INTEGER PRIMARY KEY AUTOINCREMENT,
+            customer_id INTEGER NOT NULL,
+            bike_id INTEGER NOT NULL,
+            staff_id INTEGER REFERENCES staff(staff_id) ON UPDATE CASCADE ON DELETE SET NULL,
+            rental_start DATETIME NOT NULL DEFAULT(datetime('now','localtime')),
+            FOREIGN KEY(customer_id) REFERENCES customer(customer_id) ON DELETE CASCADE,
+            FOREIGN KEY(bike_id) REFERENCES bike(bike_id) ON DELETE CASCADE
+        );
+
+        CREATE TABLE IF NOT EXISTS returns (
+            return_id INTEGER PRIMARY KEY AUTOINCREMENT,
+            customer_id INTEGER NOT NULL,
+            bike_id INTEGER NOT NULL,
+            rental_end DATETIME NOT NULL DEFAULT(datetime('now','localtime')),
+            total_amount DECIMAL(10,2) NOT NULL,
+            FOREIGN KEY(customer_id) REFERENCES customer(customer_id) ON DELETE CASCADE,
+            FOREIGN KEY(bike_id) REFERENCES bike(bike_id) ON DELETE CASCADE
+        );
+
+        CREATE TABLE IF NOT EXISTS payment (
+            payment_id INTEGER PRIMARY KEY AUTOINCREMENT,
+            customer_id INTEGER NOT NULL,
+            bike_id INTEGER NOT NULL,
+            rental_id INTEGER,
+            payment_date DATETIME NOT NULL DEFAULT(datetime('now','localtime')),
+            amount_paid DECIMAL(10,2) NOT NULL,
+            payment_method TEXT,
+            payment_status TEXT DEFAULT 'paid',
+            FOREIGN KEY(customer_id) REFERENCES customer(customer_id) ON DELETE CASCADE,
+            FOREIGN KEY(bike_id) REFERENCES bike(bike_id) ON DELETE CASCADE
+        );
+
+        CREATE TABLE IF NOT EXISTS activity_log (
+            log_id INTEGER PRIMARY KEY AUTOINCREMENT,
+            staff_id INTEGER NOT NULL REFERENCES staff(staff_id) ON UPDATE CASCADE ON DELETE RESTRICT,
+            timestamp DATETIME NOT NULL DEFAULT(datetime('now','localtime')),
+            action TEXT NOT NULL, target_table TEXT, target_id INTEGER
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_rents_customer ON rents(customer_id);
+        CREATE INDEX IF NOT EXISTS idx_rents_bike ON rents(bike_id);
+        CREATE INDEX IF NOT EXISTS idx_rents_staff ON rents(staff_id);
+        CREATE INDEX IF NOT EXISTS idx_log_staff ON activity_log(staff_id);
+
+        CREATE TRIGGER IF NOT EXISTS trg_rents_created AFTER INSERT ON rents
+        BEGIN UPDATE bike SET status='rented' WHERE bike_id=NEW.bike_id; END;
+
+        CREATE TRIGGER IF NOT EXISTS trg_returns_created AFTER INSERT ON returns
+        BEGIN UPDATE bike SET status='available' WHERE bike_id=NEW.bike_id; END;
+
+        """)
+        self.conn.commit()
+
+    def _column_exists(self, table, column):
+        rows = self.conn.execute(f"PRAGMA table_info({table})").fetchall()
+        return any(row[1] == column or (isinstance(row, dict) and row.get('name') == column) for row in rows)
+
+    def _bike_status_allows_retired(self):
+        row = self.conn.execute(
+            "SELECT sql FROM sqlite_master WHERE type='table' AND name='bike'"
+        ).fetchone()
+        if not row:
+            return False
+        sql = row[0] if isinstance(row, (list, tuple)) else row.get('sql') if isinstance(row, dict) else row
+        if not sql:
+            return False
+        return 'retired' in sql.lower()
+
+    def _migrate_bike_status(self):
+        self.conn.execute("PRAGMA foreign_keys = OFF")
+        self.conn.executescript(
+            """
+            CREATE TABLE bike_new (
+                bike_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                bike_code TEXT NOT NULL UNIQUE,
                 brand TEXT NOT NULL,
                 model TEXT NOT NULL,
                 size TEXT NOT NULL CHECK(size IN('small','medium','large')),
                 color TEXT NOT NULL,
                 bike_rate DECIMAL(8,2) NOT NULL DEFAULT 0,
                 type TEXT NOT NULL DEFAULT 'standard',
-                status TEXT NOT NULL DEFAULT 'available'
-                    CHECK(status IN('available','rented','retired')),
+                status TEXT NOT NULL DEFAULT 'available' CHECK(status IN('available','rented','retired')),
                 date_added DATE NOT NULL DEFAULT(date('now','localtime'))
             );
             INSERT INTO bike_new (
@@ -104,15 +183,25 @@ class Database:
             self.conn.execute("ALTER TABLE bike ADD COLUMN bike_rate DECIMAL(8,2) NOT NULL DEFAULT 0")
         if not self._column_exists("bike", "type"):
             self.conn.execute("ALTER TABLE bike ADD COLUMN type TEXT NOT NULL DEFAULT 'standard'")
-        if not self._bike_status_allows_retired():
-            self._migrate_bike_status()
+        # Only attempt bike-status migration if the `bike` table already exists.
+        row = self.conn.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='bike'").fetchone()
+        if row:
+            try:
+                if not self._bike_status_allows_retired():
+                    self._migrate_bike_status()
+            except Exception:
+                # Non-fatal: if bike status migration fails (existing triggers or schema quirks), continue
+                pass
         
         # Migrate mechanic staff to cashier role
         self.conn.execute("UPDATE staff SET role='cashier' WHERE role='mechanic'")
 
-        self.conn.execute("UPDATE bike SET bike_rate=COALESCE(bike_rate, 0)")
-        self.conn.execute("UPDATE bike SET type=COALESCE(type, 'standard')")
-        self.conn.execute("UPDATE bike SET status='available' WHERE status='under_maintenance'")
+        # Only run bike updates if bike table exists (defensive for fresh DBs)
+        bike_row = self.conn.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='bike'").fetchone()
+        if bike_row:
+            self.conn.execute("UPDATE bike SET bike_rate=COALESCE(bike_rate, 0)")
+            self.conn.execute("UPDATE bike SET type=COALESCE(type, 'standard')")
+            self.conn.execute("UPDATE bike SET status='available' WHERE status='under_maintenance'")
         # Ensure rents has staff_id column for recording which staff processed the rental
         row = self.conn.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='rents'").fetchone()
         if row and not self._column_exists('rents', 'staff_id'):
@@ -120,90 +209,7 @@ class Database:
             self.conn.execute("CREATE INDEX IF NOT EXISTS idx_rents_staff ON rents(staff_id)")
         self.conn.commit()
 
-    def _overhaul_schema(self):
-        """Create new transactional tables (rents, returns) and migrate payments
-        to include customer_id and bike_id while retaining rental_id for backwards compatibility.
-        This runs once if the new `rents` table does not exist.
-        """
-        # If we've already created the rents table, assume migration ran
-        row = self.conn.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='rents'").fetchone()
-        if row:
-            return
-
-        self.conn.execute("PRAGMA foreign_keys = OFF")
-        self.conn.executescript("""
-        -- Create rents table (transaction table for rentals)
-        CREATE TABLE IF NOT EXISTS rents (
-            rental_id INTEGER PRIMARY KEY AUTOINCREMENT,
-            customer_id INTEGER NOT NULL,
-            bike_id INTEGER NOT NULL,
-            staff_id INTEGER,
-            rental_start DATETIME NOT NULL DEFAULT(datetime('now','localtime')),
-            FOREIGN KEY(customer_id) REFERENCES customer(customer_id) ON DELETE CASCADE,
-            FOREIGN KEY(bike_id) REFERENCES bike(bike_id) ON DELETE CASCADE
-        );
-
-        -- Create returns table (separate return events)
-        CREATE TABLE IF NOT EXISTS returns (
-            return_id INTEGER PRIMARY KEY AUTOINCREMENT,
-            customer_id INTEGER NOT NULL,
-            bike_id INTEGER NOT NULL,
-            rental_end DATETIME NOT NULL DEFAULT(datetime('now','localtime')),
-            total_amount DECIMAL(10,2) NOT NULL,
-            FOREIGN KEY(customer_id) REFERENCES customer(customer_id) ON DELETE CASCADE,
-            FOREIGN KEY(bike_id) REFERENCES bike(bike_id) ON DELETE CASCADE
-        );
-
-        -- New payment table that references customer and bike. Keep rental_id nullable for compatibility.
-        CREATE TABLE IF NOT EXISTS payment_new (
-            payment_id INTEGER PRIMARY KEY AUTOINCREMENT,
-            customer_id INTEGER NOT NULL,
-            bike_id INTEGER NOT NULL,
-            rental_id INTEGER,
-            payment_date DATETIME NOT NULL DEFAULT(datetime('now','localtime')),
-            amount_paid DECIMAL(10,2) NOT NULL,
-            payment_method TEXT,
-            payment_status TEXT DEFAULT 'paid',
-            FOREIGN KEY(customer_id) REFERENCES customer(customer_id) ON DELETE CASCADE,
-            FOREIGN KEY(bike_id) REFERENCES bike(bike_id) ON DELETE CASCADE
-        );
-
-        -- Migrate existing payments into payment_new by joining rental -> payment
-        INSERT INTO payment_new (customer_id,bike_id,rental_id,payment_date,amount_paid,payment_method,payment_status)
-        SELECT r.customer_id, r.bike_id, p.rental_id, p.payment_date, p.amount_paid, p.payment_method, p.payment_status
-        FROM payment p JOIN rental r ON p.rental_id = r.rental_id;
-
-        -- For any payments that couldn't be joined (defensive), copy them with NULL rental
-        INSERT INTO payment_new (customer_id,bike_id,rental_id,payment_date,amount_paid,payment_method,payment_status)
-        SELECT c.customer_id, b.bike_id, NULL, p.payment_date, p.amount_paid, p.payment_method, p.payment_status
-        FROM payment p
-        LEFT JOIN rental r ON p.rental_id = r.rental_id
-        LEFT JOIN customer c ON r.customer_id = c.customer_id
-        LEFT JOIN bike b ON r.bike_id = b.bike_id
-        WHERE r.rental_id IS NULL;
-
-        -- Create rents entries from existing rental rows
-        INSERT INTO rents (rental_id, customer_id, bike_id, rental_start)
-        SELECT rental_id, customer_id, bike_id, rental_start FROM rental;
-
-        -- Create returns entries for rentals that were returned
-        INSERT INTO returns (customer_id, bike_id, rental_end, total_amount)
-        SELECT customer_id, bike_id, rental_end, COALESCE(total_amount,0) FROM rental WHERE status='returned' AND rental_end IS NOT NULL;
-
-        -- Replace old payment table with new one
-        DROP TABLE IF EXISTS payment;
-        ALTER TABLE payment_new RENAME TO payment;
-
-        -- Create triggers for rents/returns to keep bike status in sync
-        CREATE TRIGGER IF NOT EXISTS trg_rents_created AFTER INSERT ON rents
-        BEGIN UPDATE bike SET status='rented' WHERE bike_id=NEW.bike_id; END;
-
-        CREATE TRIGGER IF NOT EXISTS trg_returns_created AFTER INSERT ON returns
-        BEGIN UPDATE bike SET status='available' WHERE bike_id=NEW.bike_id; END;
-
-        """)
-        self.conn.execute("PRAGMA foreign_keys = ON")
-        self.conn.commit()
+    
     # Auth
     def get_staff_by_username(self, username):
         r = self.conn.execute("SELECT * FROM staff WHERE username=? AND status='active'", (username,)).fetchone()
