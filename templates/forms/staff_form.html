@@ -33,7 +33,6 @@
                         <select class="form-select" id="role" name="role" required>
                             <option value="admin" {% if staff_member and staff_member['role'] == 'admin' %}selected{% endif %}>Admin</option>
                             <option value="cashier" {% if staff_member and staff_member['role'] == 'cashier' %}selected{% endif %}>Cashier</option>
-                            <option value="mechanic" {% if staff_member and staff_member['role'] == 'mechanic' %}selected{% endif %}>Mechanic</option>
                         </select>
                     </div>
                     <div class="mb-3">

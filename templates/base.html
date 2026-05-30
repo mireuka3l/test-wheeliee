@@ -14,7 +14,6 @@
     <link rel="preload" as="image" href="{{ url_for('static', filename='assets/imgs/bike_icon.png') }}">
     <link rel="preload" as="image" href="{{ url_for('static', filename='assets/imgs/person_icon.png') }}">
     <link rel="preload" as="image" href="{{ url_for('static', filename='assets/imgs/payments_icon.png') }}">
-    <link rel="preload" as="image" href="{{ url_for('static', filename='assets/imgs/maintainance_icon.png') }}">
 </head>
 
 <body>
@@ -50,11 +49,6 @@
                     <img src="{{ url_for('static', filename='assets/imgs/payments_icon.png') }}"    alt="Payments">
                     <span>Payments</span>
                 </a>
-                <a href="{{ url_for('maintenance.maintenance') }}" 
-                    class="nav-item" data-route="maintenance.maintenance">
-                    <img src="{{ url_for('static', filename='assets/imgs/maintainance_icon.png') }}" alt="Maintenance">
-                    <span>Maintenance</span>
-                </a>
                 {% if is_admin %}
                 <a href="{{ url_for('staff.staff_list') }}" 
                     class="nav-item" data-route="staff.staff_list">
@@ -67,8 +61,11 @@
                     <span>Activity Log</span>
                 </a>
                 {% endif %}
+            </div>
+
+            <div class="logout-section">
                 <a href="{{ url_for('logout') }}" 
-                    class="nav-item" data-route="logout">
+                    class="logout-btn" data-route="logout">
                     <img src="{{ url_for('static', filename='assets/imgs/fsquare_icon.png') }}" alt="Logout">
                     <span>Logout</span>
                 </a>
@@ -84,6 +81,7 @@
       document.addEventListener('DOMContentLoaded', function() { // sidebar state logic / highlighting thing
         const sidebar = document.querySelector('.sidebar');
         const navItems = document.querySelectorAll('.nav-item, .nav-item-top');
+        const logoutBtn = document.querySelector('.logout-btn');
         const navIndicator = document.querySelector('.nav-indicator');
 
         function setSidebarCookie(state) {
@@ -121,6 +119,13 @@
               
             });
         });
+
+        if (logoutBtn) {
+            logoutBtn.addEventListener('click', function() {
+                sidebar.setAttribute('expand', 'true');
+                setSidebarCookie('expanded');
+            });
+        }
 
         sidebar.addEventListener('click', function(event) {
             if (event.target !== sidebar) { return; }

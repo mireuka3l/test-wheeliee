@@ -5,17 +5,18 @@
 {% block content %}
 <h1>Activity Log</h1>
 <div class="content-grid">
-    <table>
-        <thead>
-            <tr>
-                <th>Timestamp</th>
-                <th>Staff</th>
-                <th>Role</th>
-                <th>Action</th>
-                <th>Target</th>
-            </tr>
-        </thead>
-        <tbody>
+    <div class="scroll-table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>Timestamp</th>
+                    <th>Staff</th>
+                    <th>Role</th>
+                    <th>Action</th>
+                    <th>Target</th>
+                </tr>
+            </thead>
+            <tbody>
             {% for log in logs %}
             <tr>
                 <td>{{ log['timestamp'] }}</td>
@@ -25,7 +26,8 @@
                 <td>{{ log['target_table'] }}{% if log['target_id'] %} #{{ log['target_id'] }}{% endif %}</td>
             </tr>
             {% endfor %}
-        </tbody>
-    </table>
+            </tbody>
+        </table>
+    </div>
 </div>
 {% endblock %}

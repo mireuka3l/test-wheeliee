@@ -17,10 +17,6 @@
                 <span class="value">{{ rental['bike_code'] }} - {{ rental['brand'] }} {{ rental['model'] }} ({{ rental['size'] }})</span>
             </div>
             <div class="detail-item">
-                <span class="label">Staff:</span>
-                <span class="value">{{ rental['staff_name'] }}</span>
-            </div>
-            <div class="detail-item">
                 <span class="label">Status:</span>
                 <span class="value"><span class="status-badge status-{{ rental['status'] }}">{{ rental['status'].title() }}</span></span>
             </div>
@@ -39,10 +35,6 @@
             <div class="detail-item">
                 <span class="label">Total Amount:</span>
                 <span class="value">₱{{ rental['total_amount'] or 'Pending' }}</span>
-            </div>
-            <div class="detail-item">
-                <span class="label">Notes:</span>
-                <span class="value">{{ rental['notes'] or '-' }}</span>
             </div>
         </div>
     </div>

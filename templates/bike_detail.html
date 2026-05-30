@@ -50,9 +50,6 @@
             {% if bike['status'] != 'rented' %}
             <a href="{{ url_for('bikes.edit_bike', bid=bike['bike_id']) }}" class="btn-primary">Edit</a>
             {% endif %}
-            {% if bike['status'] != 'rented' %}
-            <a href="{{ url_for('maintenance.new_maintenance') }}?bike_id={{ bike['bike_id'] }}" class="btn-secondary">Schedule Maintenance</a>
-            {% endif %}
             <a href="{{ url_for('bikes.registry') }}" class="btn-secondary">Back</a>
         </div>
     </div>

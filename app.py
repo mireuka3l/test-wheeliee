@@ -10,7 +10,6 @@ from handlers.bike_routes import bikes_bp
 from handlers.customers_routes import customers_bp
 from handlers.rentals_routes import rentals_bp
 from handlers.payments_routes import payments_bp
-from handlers.maintenance_routes import maintenance_bp
 from handlers.staff_routes import staff_bp
 from handlers.activity_routes import activity_bp
 
@@ -26,7 +25,6 @@ app.register_blueprint(bikes_bp)
 app.register_blueprint(customers_bp)
 app.register_blueprint(rentals_bp)
 app.register_blueprint(payments_bp)
-app.register_blueprint(maintenance_bp)
 app.register_blueprint(staff_bp)
 app.register_blueprint(activity_bp)
 
