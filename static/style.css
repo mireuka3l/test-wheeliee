@@ -694,3 +694,24 @@ h2 {
     margin-top: 20px;
     margin-bottom: 15px;
 }
+
+/* Customer detail: make the Recent Rentals area wider and Stats narrower */
+.detail-container .detail-section.stats {
+    flex: 0 0 240px;
+    max-width: 260px;
+}
+.detail-container .detail-section.rentals {
+    flex: 2 1 0;
+}
+.detail-container .detail-section:first-child {
+    flex: 1 1 0;
+}
+
+@media (max-width: 900px) {
+    .detail-container .detail-section.stats,
+    .detail-container .detail-section.rentals,
+    .detail-container .detail-section:first-child {
+        flex: none;
+        max-width: none;
+    }
+}
