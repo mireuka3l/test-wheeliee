@@ -12,9 +12,10 @@
 </div>
 <h1>Customers</h1>
 <div class="content-grid">
-    <table>
-        <thead>
-            <tr>
+    <div class="scroll-table-container">
+        <table>
+            <thead>
+                <tr>
                 <th>Name</th>
                 <th>Contact</th>
                 <th>Email</th>
@@ -34,6 +35,7 @@
             {% endfor %}
         </tbody>
     </table>
+    </div>
 </div>
 
 <div class="modal fade" id="customerFormModal" tabindex="-1" aria-labelledby="customerFormModalLabel" aria-hidden="true">

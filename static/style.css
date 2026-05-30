@@ -231,6 +231,8 @@ body {
     opacity: 1;
     flex-direction: column;
     margin-left: var(--sidebar-collapsed); /* Creates space for the collapsed sidebar */
+    height: 100%;
+    overflow: auto;
 }
 
 .top-bar {
@@ -264,6 +266,27 @@ body {
     max-height: calc(100vh - 260px);
     padding: 20px;
     box-sizing: border-box;
+}
+
+/* ================= DETAIL PANES (SCROLLABLE) ================= */
+.detail-container {
+    display: flex;
+    gap: 20px;
+    padding: 20px;
+    box-sizing: border-box;
+}
+.detail-section {
+    flex: 1 1 0;
+    background: #fff;
+    padding: 18px;
+    border-radius: 10px;
+    max-height: calc(100vh - 240px);
+    overflow-y: auto;
+}
+
+@media (max-width: 900px) {
+    .detail-container { flex-direction: column; }
+    .detail-section { max-height: none; }
 }
 
 /* ================= FORMS ================= */

@@ -18,9 +18,10 @@
 </div>
 <h1>Bike Fleet</h1>
 <div class="content-grid">
-    <table>
-        <thead>
-            <tr>
+    <div class="scroll-table-container">
+        <table>
+            <thead>
+                <tr>
                 <th>Code</th>
                 <th>Brand</th>
                 <th>Model</th>
@@ -46,6 +47,7 @@
             {% endfor %}
         </tbody>
     </table>
+    </div>
 </div>
 
 <div class="modal fade" id="bikeFormModal" tabindex="-1" aria-labelledby="bikeFormModalLabel" aria-hidden="true">

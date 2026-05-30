@@ -10,9 +10,10 @@
 </div>
 <h1>Staff Management</h1>
 <div class="content-grid">
-    <table>
-        <thead>
-            <tr>
+    <div class="scroll-table-container">
+        <table>
+            <thead>
+                <tr>
                 <th>Username</th>
                 <th>Name</th>
                 <th>Role</th>
@@ -43,6 +44,7 @@
             {% endfor %}
         </tbody>
     </table>
+    </div>
 </div>
 
 <div class="modal fade" id="staffFormModal" tabindex="-1" aria-labelledby="staffFormModalLabel" aria-hidden="true">
