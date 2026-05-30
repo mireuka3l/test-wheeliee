@@ -56,7 +56,6 @@ class Database:
             bike_id INTEGER PRIMARY KEY AUTOINCREMENT,
             bike_code TEXT NOT NULL UNIQUE,
             brand TEXT NOT NULL, model TEXT NOT NULL,
-            size TEXT NOT NULL CHECK(size IN('small','medium','large')),
             color TEXT NOT NULL,
             bike_rate DECIMAL(8,2) NOT NULL DEFAULT 0,
             type TEXT NOT NULL DEFAULT 'standard',
@@ -142,7 +141,6 @@ class Database:
                 bike_code TEXT NOT NULL UNIQUE,
                 brand TEXT NOT NULL,
                 model TEXT NOT NULL,
-                size TEXT NOT NULL CHECK(size IN('small','medium','large')),
                 color TEXT NOT NULL,
                 bike_rate DECIMAL(8,2) NOT NULL DEFAULT 0,
                 type TEXT NOT NULL DEFAULT 'standard',
@@ -150,14 +148,13 @@ class Database:
                 date_added DATE NOT NULL DEFAULT(date('now','localtime'))
             );
             INSERT INTO bike_new (
-                bike_id, bike_code, brand, model, size, color, bike_rate, type, status, date_added
+                bike_id, bike_code, brand, model, color, bike_rate, type, status, date_added
             )
             SELECT
                 bike_id,
                 bike_code,
                 brand,
                 model,
-                size,
                 color,
                 COALESCE(bike_rate, 0),
                 COALESCE(type, 'standard'),
@@ -171,6 +168,43 @@ class Database:
         self.conn.execute("PRAGMA foreign_keys = ON")
         self.conn.commit()
         self._create_tables()
+
+    def _remove_bike_size_column(self):
+        """Remove size column from bike table by recreating it without the size field."""
+        self.conn.execute("PRAGMA foreign_keys = OFF")
+        self.conn.executescript(
+            """
+            CREATE TABLE bike_new (
+                bike_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                bike_code TEXT NOT NULL UNIQUE,
+                brand TEXT NOT NULL,
+                model TEXT NOT NULL,
+                color TEXT NOT NULL,
+                bike_rate DECIMAL(8,2) NOT NULL DEFAULT 0,
+                type TEXT NOT NULL DEFAULT 'standard',
+                status TEXT NOT NULL DEFAULT 'available' CHECK(status IN('available','rented','retired')),
+                date_added DATE NOT NULL DEFAULT(date('now','localtime'))
+            );
+            INSERT INTO bike_new (
+                bike_id, bike_code, brand, model, color, bike_rate, type, status, date_added
+            )
+            SELECT
+                bike_id,
+                bike_code,
+                brand,
+                model,
+                color,
+                COALESCE(bike_rate, 0),
+                COALESCE(type, 'standard'),
+                status,
+                date_added
+            FROM bike;
+            DROP TABLE bike;
+            ALTER TABLE bike_new RENAME TO bike;
+            """
+        )
+        self.conn.execute("PRAGMA foreign_keys = ON")
+        self.conn.commit()
 
     def _migrate_schema(self):
         if not self._column_exists("customer", "staff_id"):
@@ -192,6 +226,10 @@ class Database:
             except Exception:
                 # Non-fatal: if bike status migration fails (existing triggers or schema quirks), continue
                 pass
+        
+        # Remove size column from bike table if it exists
+        if self._column_exists("bike", "size"):
+            self._remove_bike_size_column()
         
         # Migrate mechanic staff to cashier role
         self.conn.execute("UPDATE staff SET role='cashier' WHERE role='mechanic'")
@@ -283,7 +321,7 @@ class Database:
     def get_customer_rentals(self, cid):
         rows = self.conn.execute(
             "SELECT rents.rental_id, rents.customer_id, rents.bike_id, rents.staff_id, s.first_name||' '||s.last_name AS staff_name, rents.rental_start, "
-            "b.bike_code, b.brand, b.model, b.size, b.bike_rate AS rental_rate, "
+            "b.bike_code, b.brand, b.model, b.bike_rate AS rental_rate, "
             "(SELECT rental_end FROM returns WHERE customer_id=rents.customer_id AND bike_id=rents.bike_id AND rental_end >= rents.rental_start ORDER BY rental_end LIMIT 1) AS rental_end, "
             "(SELECT total_amount FROM returns WHERE customer_id=rents.customer_id AND bike_id=rents.bike_id AND rental_end >= rents.rental_start ORDER BY rental_end LIMIT 1) AS total_amount "
             "FROM rents LEFT JOIN staff s ON rents.staff_id=s.staff_id JOIN bike b ON rents.bike_id=b.bike_id WHERE rents.customer_id=? ORDER BY rents.rental_start DESC LIMIT 10",
@@ -319,8 +357,8 @@ class Database:
 
     def create_bike(self, d):
         self.conn.execute(
-            "INSERT INTO bike(bike_code,brand,model,size,color,bike_rate,type,status) "
-            "VALUES(:bike_code,:brand,:model,:size,:color,:bike_rate,:type,'available')",
+            "INSERT INTO bike(bike_code,brand,model,color,bike_rate,type,status) "
+            "VALUES(:bike_code,:brand,:model,:color,:bike_rate,:type,'available')",
             d,
         )
         self.conn.commit()
@@ -329,7 +367,7 @@ class Database:
     def update_bike(self, bid, d):
         d["bike_id"] = bid
         self.conn.execute(
-            "UPDATE bike SET bike_code=:bike_code,brand=:brand,model=:model,size=:size,color=:color,"
+            "UPDATE bike SET bike_code=:bike_code,brand=:brand,model=:model,color=:color,"
             "bike_rate=:bike_rate,type=:type WHERE bike_id=:bike_id",
             d,
         )
@@ -349,7 +387,7 @@ class Database:
         rows = self.conn.execute(
             "SELECT rents.rental_id, rents.customer_id, c.first_name||' '||c.last_name AS customer_name, "
             "rents.staff_id, s.first_name||' '||s.last_name AS staff_name, "
-            "b.bike_code, b.brand, b.model, b.size, b.bike_rate as rental_rate, rents.rental_start, "
+            "b.bike_code, b.brand, b.model, b.bike_rate as rental_rate, rents.rental_start, "
             "(SELECT rental_end FROM returns WHERE customer_id=rents.customer_id AND bike_id=rents.bike_id AND rental_end >= rents.rental_start ORDER BY rental_end LIMIT 1) AS rental_end, "
             "(SELECT total_amount FROM returns WHERE customer_id=rents.customer_id AND bike_id=rents.bike_id AND rental_end >= rents.rental_start ORDER BY rental_end LIMIT 1) AS total_amount "
             "FROM rents JOIN customer c ON rents.customer_id=c.customer_id LEFT JOIN staff s ON rents.staff_id=s.staff_id JOIN bike b ON rents.bike_id=b.bike_id "
@@ -373,7 +411,7 @@ class Database:
 
     def get_rental(self, rid):
         r = self.conn.execute(
-            "SELECT rents.rental_id, rents.customer_id, c.first_name||' '||c.last_name AS customer_name, rents.staff_id, s.first_name||' '||s.last_name AS staff_name, b.bike_code, b.brand, b.model, b.size, b.bike_rate AS rental_rate, rents.rental_start, "
+            "SELECT rents.rental_id, rents.customer_id, c.first_name||' '||c.last_name AS customer_name, rents.staff_id, s.first_name||' '||s.last_name AS staff_name, b.bike_code, b.brand, b.model, b.bike_rate AS rental_rate, rents.rental_start, "
             "(SELECT rental_end FROM returns WHERE customer_id=rents.customer_id AND bike_id=rents.bike_id AND rental_end >= rents.rental_start ORDER BY rental_end LIMIT 1) AS rental_end, "
             "(SELECT total_amount FROM returns WHERE customer_id=rents.customer_id AND bike_id=rents.bike_id AND rental_end >= rents.rental_start ORDER BY rental_end LIMIT 1) AS total_amount "
             "FROM rents JOIN customer c ON rents.customer_id=c.customer_id LEFT JOIN staff s ON rents.staff_id=s.staff_id JOIN bike b ON rents.bike_id=b.bike_id WHERE rents.rental_id=?",

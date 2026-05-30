@@ -25,7 +25,6 @@
                 <th>Brand</th>
                 <th>Model</th>
                 <th>Type</th>
-                <th>Size</th>
                 <th>Color</th>
                 <th>Rate</th>
                 <th>Status</th>
@@ -39,7 +38,6 @@
                 <td>{{ bike['brand'] }}</td>
                 <td>{{ bike['model'] }}</td>
                 <td>{{ bike['type'] }}</td>
-                <td>{{ bike['size'] }}</td>
                 <td>{{ bike['color'] }}</td>
                 <td>₱{{ bike['bike_rate'] }}</td>
                 <td><span class="status-badge status-{{ bike['status'] }}">{{ bike['status'].replace('_', ' ').title() }}</span></td>
@@ -76,20 +74,11 @@
                         <input type="text" class="form-control" id="type" name="type" required>
                     </div>
                     <div class="mb-3">
-                        <label for="size" class="form-label">Size</label>
-                        <select class="form-select" id="size" name="size" required>
-                            <option value="">Select Size...</option>
-                            <option value="small">Small</option>
-                            <option value="medium">Medium</option>
-                            <option value="large">Large</option>
-                        </select>
-                    </div>
-                    <div class="mb-3">
                         <label for="color" class="form-label">Color</label>
                         <input type="text" class="form-control" id="color" name="color" required>
                     </div>
                     <div class="mb-3">
-                        <label for="bike_rate" class="form-label">Daily Rate (₱)</label>
+                        <label for="bike_rate" class="form-label">Hourly Rate (₱)</label>
                         <input type="number" class="form-control" id="bike_rate" name="bike_rate" step="0.01" required>
                     </div>
                 </form>

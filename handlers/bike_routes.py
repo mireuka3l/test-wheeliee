@@ -47,7 +47,6 @@ def edit_bike(bid):
             'bike_code': request.form.get('bike_code'),
             'brand': request.form.get('brand'),
             'model': request.form.get('model'),
-            'size': request.form.get('size'),
             'color': request.form.get('color'),
             'bike_rate': request.form.get('bike_rate'),
             'type': request.form.get('type')

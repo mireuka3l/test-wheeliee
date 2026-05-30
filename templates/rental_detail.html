@@ -14,7 +14,7 @@
             </div>
             <div class="detail-item">
                 <span class="label">Bike:</span>
-                <span class="value">{{ rental['bike_code'] }} - {{ rental['brand'] }} {{ rental['model'] }} ({{ rental['size'] }})</span>
+                <span class="value">{{ rental['bike_code'] }} - {{ rental['brand'] }} {{ rental['model'] }}</span>
             </div>
             <div class="detail-item">
                 <span class="label">Status:</span>
@@ -29,7 +29,7 @@
                 <span class="value">{{ rental['rental_end'] or 'Not Returned' }}</span>
             </div>
             <div class="detail-item">
-                <span class="label">Daily Rate:</span>
+                <span class="label">Hourly Rate:</span>
                 <span class="value">₱{{ rental['rental_rate'] }}</span>
             </div>
             <div class="detail-item">
