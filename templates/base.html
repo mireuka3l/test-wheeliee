@@ -52,12 +52,12 @@
                 {% if is_admin %}
                 <a href="{{ url_for('staff.staff_list') }}" 
                     class="nav-item" data-route="staff.staff_list">
-                    <img src="{{ url_for('static', filename='assets/imgs/person_icon.png') }}" alt="Staff">
+                    <img src="{{ url_for('static', filename='assets/imgs/staff_icon.png') }}" alt="Staff">
                     <span>Staff</span>
                 </a>
                 <a href="{{ url_for('activity.activity_log') }}" 
                     class="nav-item" data-route="activity.activity_log">
-                    <img src="{{ url_for('static', filename='assets/imgs/payments_icon.png') }}" alt="Activity Log">
+                    <img src="{{ url_for('static', filename='assets/imgs/log_icon.png') }}" alt="Activity Log">
                     <span>Activity Log</span>
                 </a>
                 {% endif %}
